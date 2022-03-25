@@ -7,42 +7,42 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 
-import "../../interfaces/traderjoe/IVeJoeStaking.sol";
-import "../../interfaces/common/gauge/IGaugeStrategy.sol";
-import "../../interfaces/common/gauge/IVeWantFeeDistributor.sol";
+import "../../interfaces/common/boost/IBoostedStrategy.sol";
+import "../../interfaces/traderjoe/IVeWantStaking.sol";
+import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
 
 contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
      * @dev Beefy Contracts:
-     * {feeDistributor} - Address of the fee distributor for veWant rewards.
-     * {gaugeProxy} - Address for voting on gauge weightings.
+     * {veWantStaking} - Address of the staking contract for veWant.
      * {keeper} - Address to manage a few lower risk features of the strat.
-     * {rewardPool} - Address for distributing locked want rewards.
+     * {chef} - Address for the chef managing the boosted pools.
      */
-    IVeJoeStaking public veJoeStaking;
+    IVeWantStaking public veWantStaking;
     address public keeper;
-    address public boostedChef;
+    IBoostedMasterChef public chef;
 
     mapping(uint256 => address) whitelistedStrategy;
     mapping(address => address) replacementStrategy;
 
     /**
      * @dev Initializes the base strategy.
-     * @param _feeDistributor address of veWant fee distributor.
-     * @param _gaugeProxy address of gauge proxy to vote on.
-     * @param _keeper address to use as alternative owner.
-     * @param _rewardPool address of reward pool.
+     * @param _veWantStaking address of the staking contract for veWant.
+     * @param _keeper address to manage a few lower risk features of the strat.
+     * @param _chef address for the chef managing the boosted pools.
      */
     function managerInitialize(
-        address _veJoeStaking,
+        address _veWantStaking,
         address _keeper,
+        address _chef
     ) internal initializer {
         __Ownable_init();
 
-        boostedChef = IBoostedChef(_boostedChef);
+        veWantStaking = IVeWantStaking(_veWantStaking);
         keeper = _keeper;
+        chef = IBoostedMasterChef(_chef);
     }
 
     // checks that caller is either owner or keeper.
@@ -57,18 +57,12 @@ contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgra
         _;
     }
 
-    // checks that caller is the reward pool.
-    modifier onlyRewardPool() {
-        require(msg.sender == rewardPool, "!rewardPool");
-        _;
-    }
-
     /**
-     * @dev Updates address of the fee distributor.
-     * @param _feeDistributor new fee distributor address.
+     * @dev Updates address of the chef.
+     * @param _chef new chef.
      */
-    function setFeeDistributor(address _feeDistributor) external onlyOwner {
-        feeDistributor = IVeWantFeeDistributor(_feeDistributor);
+    function setChef(address _chef) external onlyOwner {
+        chef = IBoostedMasterChef(_chef);
     }
 
     /**
@@ -80,25 +74,18 @@ contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgra
     }
 
     /**
-     * @dev Updates address where reward pool where want is rewarded.
-     * @param _rewardPool new reward pool address.
-     */
-    function setRewardPool(address _rewardPool) external onlyOwner {
-        rewardPool = _rewardPool;
-    }
-
-     /**
-     * @dev Whitelists a strategy address to interact with the Gauge Staker and gives approvals.
+     * @dev Whitelists a strategy address to interact with the VeJoeStaker and gives approvals.
      * @param _strategy new strategy address.
      */
     function whitelistStrategy(address _strategy) external onlyManager {
-        IERC20Upgradeable _want = IGaugeStrategy(_strategy).want();
-        address _gauge = IGaugeStrategy(_strategy).gauge();
-        require(IGauge(_gauge).balanceOf(address(this)) == 0, '!inactive');
+        IERC20Upgradeable _want = IBoostedStrategy(_strategy).want();
+        uint256 _poolId = IBoostedStrategy(_strategy).poolId();
+        (uint256 _amount,,) = chef.userInfo(_poolId, address(this));
+        require(_amount == 0, "!inactive");
 
-        _want.safeApprove(_gauge, 0);
-        _want.safeApprove(_gauge, type(uint256).max);
-        whitelistedStrategy[_gauge] = _strategy;
+        _want.safeApprove(address(chef), 0);
+        _want.safeApprove(address(chef), type(uint256).max);
+        whitelistedStrategy[_poolId] = _strategy;
     }
 
     /**
@@ -108,8 +95,8 @@ contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgra
     function blacklistStrategy(address _strategy) external onlyManager {
         IERC20Upgradeable _want = IBoostedStrategy(_strategy).want();
         uint256 _poolId = IBoostedStrategy(_strategy).poolId();
-        _want.safeApprove(boostedChef, 0);
-        whitelistedStrategy[_gauge] = address(0);
+        _want.safeApprove(address(chef), 0);
+        whitelistedStrategy[_poolId] = address(0);
     }
 
     /**
@@ -124,10 +111,10 @@ contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgra
     }
 
     /**
-     * @dev Switch over whitelist from one strategy to another for a LP.
-     * @param _lp LP for which the new strategy will be whitelisted.
+     * @dev Switch over whitelist from one strategy to another for a pool.
+     * @param _poolId Chef poolId for which the new strategy will be whitelisted.
      */
-    function upgradeStrategy(uint256 _lp) external onlyWhitelist(_lp) {
-        whitelistedStrategy[_lp] = replacementStrategy[msg.sender];
+    function upgradeStrategy(uint256 _poolId) external onlyWhitelist(_poolId) {
+        whitelistedStrategy[_poolId] = replacementStrategy[msg.sender];
     }
 }

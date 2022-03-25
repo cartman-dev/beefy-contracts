@@ -6,7 +6,9 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-import "../../interfaces/common/gauge/IVeWant.sol";
+import "../../interfaces/common/boost/IVeWant.sol";
+import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
+import "../../interfaces/traderjoe/IVeWantStaking.sol";
 import "./VeJoeStakingManager.sol";
 
 contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStakingManager {
@@ -21,16 +23,16 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
     event RecoverTokens(address token, uint256 amount);
 
     function initialize(
-        address _veWant,
-        address _stakingProxy,
+        address _veWantStaking,
         address _keeper,
-        address _boostedChef,
+        address _chef,
         string memory _name,
         string memory _symbol
     ) public initializer {
-        managerInitialize(_gaugeProxy, _keeper, _boostedChef);
-        veWant = IVeWant(_veWant);
-        want = IERC20Upgradeable(veWant.token());
+        managerInitialize(_veWantStaking, _keeper, _chef);
+
+        veWant = IVeWantStaking(_veWantStaking).veJoe();
+        want = IVeWantStaking(_veWantStaking).joe();
 
         __ERC20_init(_name, _symbol);
 
@@ -53,15 +55,14 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
     }
 
     // deposit 'want' 
+    // TODO
     function _deposit(address _user, uint256 _amount) internal nonReentrant whenNotPaused {
         uint256 _pool = balanceOfWant();
         want.safeTransferFrom(msg.sender, address(this), _amount);
         uint256 _after = balanceOfWant();
         _amount = _after.sub(_pool); // Additional check for deflationary tokens
         if (_amount > 0) {
-            if (balanceOfVe() > 0) {
-                veWant.increase_amount(_amount);
-            } 
+            // TODO figure out how to stak
 
             _mint(_user, _amount);
             emit DepositWant(balanceOfVe());
@@ -90,43 +91,29 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
         want.safeApprove(address(veWant), type(uint256).max);
     }
 
-    // TODO pass through a deposit to a gauge
-    function deposit(address _gauge, uint256 _amount) external onlyWhitelist(_gauge) {
-        address _underlying = IGauge(_gauge).TOKEN();
+    // pass through a deposit to the chef
+    function deposit(uint256 _poolId, uint256 _amount) external onlyWhitelist(_poolId) {
+        address _underlying = _wantFromPool(_poolId);
         IERC20Upgradeable(_underlying).safeTransferFrom(msg.sender, address(this), _amount);
-        IGauge(_gauge).deposit(_amount);
+        IBoostedMasterChef(chef).deposit(_poolId, _amount);
     }
 
-    // TODO pass through a withdrawal from a gauge
-    function withdraw(address _gauge, uint256 _amount) external onlyWhitelist(_gauge) {
-        address _underlying = IGauge(_gauge).TOKEN();
-        IGauge(_gauge).withdraw(_amount);
-        IERC20Upgradeable(_underlying).safeTransfer(msg.sender, _amount);
+    // pass through a withdrawal from the chef
+    function withdraw(uint256 _poolId, uint256 _amount) external onlyWhitelist(_poolId) {
+        address _underlying = _wantFromPool(_poolId);
+        _withdraw(_poolId, _underlying, _amount);
     }
 
-    // TODO pass through a full withdrawal from a gauge
-    function withdrawAll(address _gauge) external onlyWhitelist(_gauge) {
-        address _underlying = IGauge(_gauge).TOKEN();
-        uint256 _before = IERC20Upgradeable(_underlying).balanceOf(address(this));
-        IGauge(_gauge).withdrawAll();
-        uint256 _balance = IERC20Upgradeable(_underlying).balanceOf(address(this)).sub(_before);
-        IERC20Upgradeable(_underlying).safeTransfer(msg.sender, _balance);
+    // pass through a full withdrawal from the chef
+    function withdrawAll(uint256 _poolId) external onlyWhitelist(_poolId) {
+        address _underlying = _wantFromPool(_poolId);
+        (uint256 _amount,,) = IBoostedMasterChef(chef).userInfo(_poolId, address(this));
+        _withdraw(_poolId, _underlying, _amount);
     }
 
-    // TODO pass through rewards from a gauge
-    function claimGaugeReward(address _gauge) external onlyWhitelist(_gauge) {
-        uint256 _before = balanceOfWant();
-        IGauge(_gauge).getReward();
-        uint256 _balance = balanceOfWant().sub(_before);
-        want.safeTransfer(msg.sender, _balance);
-    }
-
-    // pass through rewards from the fee distributor
-    function claimVeWantReward() external onlyRewardPool {
-        uint256 _before = balanceOfWant();
-        stakingProxy.claim();
-        uint256 _balance = balanceOfWant().sub(_before);
-        want.safeTransfer(msg.sender, _balance);
+    // pass through rewards from the chef
+    function claimWantReward(uint256 _poolId) external onlyWhitelist(_poolId) {
+        _withdraw(_poolId, address(0), 0);
     }
 
     // recover any unknown tokens
@@ -137,5 +124,22 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
         IERC20Upgradeable(_token).safeTransfer(msg.sender, _amount);
 
         emit RecoverTokens(_token, _amount);
+    }
+
+    // internal withdrawal function
+    function _withdraw(uint256 _poolId, address _underlying, uint256 _amount) internal {
+        uint256 _before = balanceOfWant();
+        IBoostedMasterChef(chef).withdraw(_poolId, _amount);
+        uint256 _balance = balanceOfWant().sub(_before);
+        want.safeTransfer(msg.sender, _balance);
+        if( _balance > 0) {
+            IERC20Upgradeable(_underlying).safeTransfer(msg.sender, _balance);
+        }
+    }
+
+    // get want from chef pool
+    function _wantFromPool(uint256 _poolId) internal view returns (address) {
+        (address _want,,,) = IBoostedMasterChef(chef).poolInfo(_poolId);
+        return _want;
     }
 }

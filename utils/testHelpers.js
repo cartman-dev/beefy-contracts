@@ -132,7 +132,7 @@ const getUnirouterData = address => {
 };
 
 const wrapNative = async (amount, wNativeAddr) => {
-  const wNative = await ethers.getContractAt("IWrappedNative", wNativeAddr);
+  const wNative = await ethers.getContractAt("contracts/BIFI/interfaces/common/IWrappedNative.sol:IWrappedNative", wNativeAddr);
   await wNative.deposit({ value: amount });
 };
 

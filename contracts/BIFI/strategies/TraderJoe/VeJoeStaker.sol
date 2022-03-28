@@ -11,6 +11,8 @@ import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
 import "../../interfaces/traderjoe/IVeWantStaking.sol";
 import "./VeJoeStakingManager.sol";
 
+import "hardhat/console.sol"; // TODO REMOVE
+
 contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStakingManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
@@ -36,16 +38,18 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
 
         __ERC20_init(_name, _symbol);
 
-        want.safeApprove(address(veWant), type(uint256).max);
+        want.safeApprove(address(veWantStaking), type(uint256).max);
     }
 
     // helper function for depositing full balance of want
     function depositAll() external {
+        console.log("staker: depositAll()");
         _deposit(msg.sender, want.balanceOf(msg.sender));
     }
 
     // deposit an amount of want
     function deposit(uint256 _amount) external {
+        console.log("staker: deposit(%s)", _amount);
         _deposit(msg.sender, _amount);
     }
 
@@ -55,14 +59,18 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
     }
 
     // deposit 'want' 
-    // TODO
     function _deposit(address _user, uint256 _amount) internal nonReentrant whenNotPaused {
+        console.log("staker: _deposit(%s, %s)", _user, _amount);
+
         uint256 _pool = balanceOfWant();
+        console.log("staker: _pool:", _pool);
         want.safeTransferFrom(msg.sender, address(this), _amount);
         uint256 _after = balanceOfWant();
+        console.log("staker: _after:", _after);
         _amount = _after.sub(_pool); // Additional check for deflationary tokens
+        console.log("staker: _amount:", _amount);
         if (_amount > 0) {
-            // TODO figure out how to stak
+            IVeWantStaking(veWantStaking).deposit(_amount);
 
             _mint(_user, _amount);
             emit DepositWant(balanceOfVe());
@@ -93,14 +101,20 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
 
     // pass through a deposit to the chef
     function deposit(uint256 _poolId, uint256 _amount) external onlyWhitelist(_poolId) {
+        console.log("staker: deposit(%s, %s)", _poolId, _amount);
         address _underlying = _wantFromPool(_poolId);
+        console.log("staker: _underlying:", _underlying);
+        console.log("staker: _underlying.safeTransferFrom(msg.sender, this, %s)", _amount);
         IERC20Upgradeable(_underlying).safeTransferFrom(msg.sender, address(this), _amount);
+        console.log("staker: chef.deposit(%s, %s)", _poolId, _amount);
         IBoostedMasterChef(chef).deposit(_poolId, _amount);
     }
 
     // pass through a withdrawal from the chef
     function withdraw(uint256 _poolId, uint256 _amount) external onlyWhitelist(_poolId) {
+        console.log("staker: withdraw(%s, %s)", _poolId, _amount);
         address _underlying = _wantFromPool(_poolId);
+        console.log("staker: _underlying:", _underlying);
         _withdraw(_poolId, _underlying, _amount);
     }
 
@@ -111,9 +125,21 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
         _withdraw(_poolId, _underlying, _amount);
     }
 
+    // pass through an emergency withdrawal from the chef
+    function emergencyWithdraw(uint256 _poolId) external onlyWhitelist(_poolId) {
+        address _underlying = _wantFromPool(_poolId);
+        (uint256 _amount,,) = IBoostedMasterChef(chef).userInfo(_poolId, address(this));
+        _withdraw(_poolId, _underlying, _amount);
+    }
+
     // pass through rewards from the chef
     function claimWantReward(uint256 _poolId) external onlyWhitelist(_poolId) {
         _withdraw(_poolId, address(0), 0);
+    }
+
+    // claim Ve Rewards
+    function claimVeReward() external {
+        IVeWantStaking(veWantStaking).claim();
     }
 
     // recover any unknown tokens
@@ -128,12 +154,19 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
 
     // internal withdrawal function
     function _withdraw(uint256 _poolId, address _underlying, uint256 _amount) internal {
-        uint256 _before = balanceOfWant();
+        console.log("staker: _withdraw(%s, %s, %s)", _poolId, _underlying, _amount);
+        uint256 _wantBefore = balanceOfWant();
+        console.log("staker: _before:", _wantBefore);
+        console.log("staker: chef.withdraw(%s, %s)", _poolId, _amount);
         IBoostedMasterChef(chef).withdraw(_poolId, _amount);
-        uint256 _balance = balanceOfWant().sub(_before);
-        want.safeTransfer(msg.sender, _balance);
-        if( _balance > 0) {
-            IERC20Upgradeable(_underlying).safeTransfer(msg.sender, _balance);
+        uint256 _wantBalance = balanceOfWant().sub(_wantBefore);
+        console.log("staker: _balance:", _wantBalance);
+        console.log("staker: want.safeTransfer(msg.sender, %s)", _wantBalance);
+        want.safeTransfer(msg.sender, _wantBalance);
+        uint256 _underlyingBalance = IERC20Upgradeable(_underlying).balanceOf(address(this));
+        if( _underlyingBalance > 0) {
+            console.log("staker: _underlying.safeTransfer(msg.sender, %s)", _underlyingBalance);
+            IERC20Upgradeable(_underlying).safeTransfer(msg.sender, _underlyingBalance);
         }
     }
 

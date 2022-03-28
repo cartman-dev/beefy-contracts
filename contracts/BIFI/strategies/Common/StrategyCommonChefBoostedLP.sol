@@ -15,6 +15,8 @@ import "../Common/FeeManager.sol";
 import "../../utils/StringUtils.sol";
 import "../../utils/GasThrottler.sol";
 
+import "hardhat/console.sol"; // TODO REMOVE
+
 contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -86,22 +88,27 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // puts the funds to work
     function deposit() public whenNotPaused {
+        console.log("strat: deposit()");
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal > 0) {
+            console.log("strat: booststaker.deposit(%s, %s)", poolId, wantBal);
             IBoostStaker(boostStaker).deposit(poolId, wantBal);
             emit Deposit(balanceOf());
         }
     }
 
     function withdraw(uint256 _amount) external {
+        console.log("strat: withdraw(%s)", _amount);
         require(msg.sender == vault, "!vault");
 
         uint256 wantBal = IERC20(want).balanceOf(address(this));
-
+        console.log("strat: wantBal:", wantBal);
         if (wantBal < _amount) {
+            console.log("strat: boostStaker.withdraw(%s, %s)", poolId, _amount.sub(wantBal));
             IBoostStaker(boostStaker).withdraw(poolId, _amount.sub(wantBal));
             wantBal = IERC20(want).balanceOf(address(this));
+            console.log("strat: wantBal:", wantBal);
         }
 
         if (wantBal > _amount) {
@@ -112,7 +119,7 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
             uint256 withdrawalFeeAmount = wantBal.mul(withdrawalFee).div(WITHDRAWAL_MAX);
             wantBal = wantBal.sub(withdrawalFeeAmount);
         }
-
+        console.log("strat: want.safeTransfer(vault, %s)", wantBal);
         IERC20(want).safeTransfer(vault, wantBal);
 
         emit Withdraw(balanceOf());
@@ -198,17 +205,22 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // calculate the total underlaying 'want' held by the strat.
     function balanceOf() public view returns (uint256) {
+        console.log("strat: balanceOf()");
         return balanceOfWant().add(balanceOfPool());
     }
 
     // it calculates how much 'want' this contract holds.
     function balanceOfWant() public view returns (uint256) {
+        console.log("strat: balanceOfWant()");
+        console.log("strat: return:", IERC20(want).balanceOf(address(this)));
         return IERC20(want).balanceOf(address(this));
     }
 
     // it calculates how much 'want' the strategy has working in the farm.
     function balanceOfPool() public view returns (uint256) {
+        console.log("strat: balanceOfPool()");
         (uint256 _amount,) = IMasterChef(chef).userInfo(poolId, address(boostStaker));
+        console.log("strat: _amount:", _amount);
         return _amount;
     }
 
@@ -218,7 +230,10 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // returns rewards unharvested
     function rewardsAvailable() public view returns (uint256) {
+        console.log("strat: rewardsAvailable()");
         string memory signature = StringUtils.concat(pendingRewardsFunctionName, "(uint256,address)");
+        console.log("strat: signature:", signature);
+        console.log("strat: staticCall(chef, signature, poolId, boostStaker)");
         bytes memory result = Address.functionStaticCall(
             chef, 
             abi.encodeWithSignature(
@@ -227,18 +242,23 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
                 address(boostStaker)
             )
         );  
+        console.log("strat: result:", abi.decode(result, (uint256)));
         return abi.decode(result, (uint256));
     }
 
     // native reward amount for calling harvest
     function callReward() public view returns (uint256) {
+        console.log("strat: callReward()");
         uint256 outputBal = rewardsAvailable();
+        console.log("strat: outputBal", outputBal);
         uint256 nativeOut;
         if (outputBal > 0) {
+            console.log("strat: unirouter.getAmountsOut(%s, outputToNativeRoute)", outputBal);
             uint256[] memory amountOut = IUniswapRouterETH(unirouter).getAmountsOut(outputBal, outputToNativeRoute);
             nativeOut = amountOut[amountOut.length -1];
+            console.log("strat: nativeOut:", nativeOut);
         }
-
+        console.log("strat: return", nativeOut.mul(45).div(1000).mul(callFee).div(MAX_FEE));
         return nativeOut.mul(45).div(1000).mul(callFee).div(MAX_FEE);
     }
 
@@ -269,7 +289,9 @@ contract StrategyCommonChefBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // pauses deposits and withdraws all funds from third party systems.
     function panic() public onlyManager {
+        console.log("strat: panic()");
         pause();
+        console.log("strat: boostStaker.emergencyWithdraw(%s)", poolId);
         IBoostStaker(boostStaker).emergencyWithdraw(poolId);
     }
 

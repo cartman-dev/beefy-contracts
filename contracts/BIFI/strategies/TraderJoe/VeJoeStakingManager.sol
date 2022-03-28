@@ -11,6 +11,8 @@ import "../../interfaces/common/boost/IBoostedStrategy.sol";
 import "../../interfaces/traderjoe/IVeWantStaking.sol";
 import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
 
+import "hardhat/console.sol";
+
 contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 

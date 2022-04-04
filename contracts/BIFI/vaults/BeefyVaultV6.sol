@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "../interfaces/beefy/IStrategy.sol";
 
+import "hardhat/console.sol"; //TODO REMOVE
+
 /**
  * @dev Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -67,6 +69,8 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      *  and the balance deployed in other contracts as part of the strategy.
      */
     function balance() public view returns (uint) {
+        console.log("vault: balance()");
+        console.log("vault: call strategy.balanceOf()");
         return want().balanceOf(address(this)).add(IStrategy(strategy).balanceOf());
     }
 
@@ -92,6 +96,7 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      * @dev A helper function to call deposit() with all the sender's funds.
      */
     function depositAll() external {
+        console.log("vault: depositAll()");
         deposit(want().balanceOf(msg.sender));
     }
 
@@ -100,12 +105,17 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      * into the vault. The vault is then in charge of sending funds into the strategy.
      */
     function deposit(uint _amount) public nonReentrant {
+        console.log("vault: deposit(%s)", _amount);
         strategy.beforeDeposit();
 
         uint256 _pool = balance();
+        console.log("vault: _pool:", _pool);
+        console.log("vault: want.safeTransfer(msg.sender, address(this), %s)", _amount);
         want().safeTransferFrom(msg.sender, address(this), _amount);
+        console.log("vault: call earn()");
         earn();
         uint256 _after = balance();
+        console.log("vault: _after:", _after);
         _amount = _after.sub(_pool); // Additional check for deflationary tokens
         uint256 shares = 0;
         if (totalSupply() == 0) {
@@ -121,8 +131,11 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      * by the vault's deposit() function.
      */
     function earn() public {
+        console.log("vault: earn()");
         uint _bal = available();
+        console.log("vault: safeTransfer(strategy, %s)", _bal); 
         want().safeTransfer(address(strategy), _bal);
+        console.log("vault: strategy.deposit()");
         strategy.deposit();
     }
 
@@ -130,6 +143,7 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      * @dev A helper function to call withdraw() with all the sender's funds.
      */
     function withdrawAll() external {
+        console.log("vault: withdrawAll()");
         withdraw(balanceOf(msg.sender));
     }
 
@@ -139,12 +153,14 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
      * tokens are burned in the process.
      */
     function withdraw(uint256 _shares) public {
+        console.log("vault: withdraw(%s)", _shares);
         uint256 r = (balance().mul(_shares)).div(totalSupply());
         _burn(msg.sender, _shares);
 
         uint b = want().balanceOf(address(this));
         if (b < r) {
             uint _withdraw = r.sub(b);
+            console.log("vault: strategy.withdraw(%s)", _withdraw);
             strategy.withdraw(_withdraw);
             uint _after = want().balanceOf(address(this));
             uint _diff = _after.sub(b);
@@ -152,7 +168,7 @@ contract BeefyVaultV6 is ERC20, Ownable, ReentrancyGuard {
                 r = b.add(_diff);
             }
         }
-
+        console.log("vault: want().safeTransfer(msg.sender, %s)", r);
         want().safeTransfer(msg.sender, r);
     }
 

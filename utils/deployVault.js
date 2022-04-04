@@ -24,9 +24,9 @@ const deployVault = async config => {
     config.strategyParams.keeper,
     config.strategyParams.strategist,
     config.strategyParams.beefyFeeRecipient,
-    config.strategyParams.outputToNativeRoute,
-    config.strategyParams.outputToLp0Route,
-    config.strategyParams.outputToLp1Route,
+    config.strategyParams.secondOutputToNativeRoute,
+    config.strategyParams.nativeToLp0Route,
+    config.strategyParams.nativeToLp1Route,
   ];
 
   const Strategy = await ethers.getContractFactory(config.strategy);

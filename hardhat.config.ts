@@ -20,6 +20,9 @@ const config: DeploymentConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
+      forking: {
+        url: "https://api.avax.network/ext/bc/C/rpc",
+      },
       // accounts visible to hardhat network used by `hardhat node --fork` (yarn net <chainName>)
       accounts: hardhatNetworkAccounts,
     },

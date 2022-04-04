@@ -6,6 +6,7 @@ const deployStaker = async config => {
     config.stakerParams.veWantStaking,
     config.stakerParams.keeper,
     config.stakerParams.chef,
+    config.stakerParams.joeVault,
     config.stakerParams.name,
     config.stakerParams.symbol,
   ];

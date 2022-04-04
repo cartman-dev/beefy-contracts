@@ -7,27 +7,53 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 
+import "../../interfaces/beefy/IVault.sol";
 import "../../interfaces/common/boost/IBoostedStrategy.sol";
 import "../../interfaces/traderjoe/IVeWantStaking.sol";
 import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
 
 import "hardhat/console.sol";
 
-contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgradeable {
+contract VeJoeStakerManager is Initializable, OwnableUpgradeable, PausableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /**
      * @dev Beefy Contracts:
+     * {joeVault} - Single-stake vault for JOE reserves
      * {veWantStaking} - Address of the staking contract for veWant.
      * {keeper} - Address to manage a few lower risk features of the strat.
      * {chef} - Address for the chef managing the boosted pools.
      */
-    IVeWantStaking public veWantStaking;
+    address public joeVault;
     address public keeper;
+
+    /**
+     * @dev 3rd Party Contracts:
+     * {veWantStaking} - StakingProxy for veJOE
+     * {chef} - BoostedMasterChef
+      */
+    IVeWantStaking public veWantStaking;
     IBoostedMasterChef public chef;
 
-    mapping(uint256 => address) whitelistedStrategy;
-    mapping(address => address) replacementStrategy;
+    /**
+     * @dev Staker Parameters
+     * {whitelistedStrategy} - Mapping of whitelisted strategy addresses
+     *                         from poolIds
+     * {replacementStrategy} - Mapping current strategy to replacement strategy
+     */
+    mapping(uint256 => address) public whitelistedStrategy;
+    mapping(address => address) public replacementStrategy;
+
+    /**
+     * @dev Reserve Parameters
+     */
+    uint256 constant public MAX_REWARDER_RATE = 5000;
+    uint256 constant public MIN_RESERVE_RATIO_BPS = 500;
+    uint256 constant public BATCH_SIZE_BPS = 500;
+    uint256 public reserveRatioBps = MIN_RESERVE_RATIO_BPS;
+
+    mapping(uint256 => address) public rewarders;
+    mapping(uint256 => uint256) public rewardRates;
 
     /**
      * @dev Initializes the base strategy.
@@ -118,5 +144,43 @@ contract VeJoeStakingManager is Initializable, OwnableUpgradeable, PausableUpgra
      */
     function upgradeStrategy(uint256 _poolId) external onlyWhitelist(_poolId) {
         whitelistedStrategy[_poolId] = replacementStrategy[msg.sender];
+    }
+
+    function setRewarder(uint256 _id, address _rewarder, _rate) external onlyOwner {
+        require(_rate <= MAX_REWARDER_RATE, "!Rate");
+        rewarders[_id] = _rewarder;
+        rewardRates[_id] = _rate;
+    }
+
+    function setReserveRate(uint256 _rate) external onlyOwner {
+        require(_ratio >= MIN_RESERVE_RATE_BPS, "! >Min");
+        reserveRateBps = _rate;
+    }
+
+    function _reserveJoeBal() internal returns (uint256) {
+        return balanceOfWant()
+            .add(IVault(joeVault).balance());
+    }
+
+    function _totalJoeBal() internal returns (uint256) {
+        return _reserveJoeBal()
+            .add(veWantStaking.joe());
+    }
+
+    function _targetJoeBal() internal returns (uint256) {
+        return _wantJoeBal()
+            .mul(reserveRateBps)
+            .div(10000);
+    }
+
+    function _batchAmount(uint256) internal returns (uint256) {
+        uint256 toLock = _targetJoeBal().sub(_totalJoeBal());
+        uint256 batchSize = veWantStaking.joe().mul(BATCH_SIZE_BPS).div(10000);
+
+        if (toLock < batchSize) {
+            return 0;
+        }
+
+        return batchSize;
     }
 }

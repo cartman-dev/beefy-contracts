@@ -30,6 +30,7 @@ const WAVAX = "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
 const VEJOE_STAKING = "0x25D85E17dD9e544F6E9F8D44F99602dbF5a97341";
 const BOOSTEDMASTERCHEF = "0x4483f0b6e2F5486D06958C20f8C39A7aBe87bf8F";
 const UNIROUTER = "0x60aE616a2155Ee3d9A68541Ba4544862310933d4";
+const JOEVAULT = "0x282B11E65f0B49363D4505F91c7A44fBEe6bCc0b";
 
 // OTHER ADDRESSES
 const KEEPER = "0x340465d9D2EbDE78F15a3870884757584F97aBB4";
@@ -86,6 +87,7 @@ describe("VeJoeArch", async () => {
         veWantStaking: VEJOE_STAKING,
         keeper: KEEPER,
         chef: BOOSTEDMASTERCHEF,
+        joeVault: JOEVAULT,
         name: "Beefy Escrowed JOE",
         symbol: "beJOE",
       },
@@ -97,12 +99,11 @@ describe("VeJoeArch", async () => {
   const FirstVault = async ({ signer, stakerAddr }) => {
     const config = {
       vault: "BeefyVaultV6",
-      strategy: "StrategyCommonChefBoostedLP",
+      strategy: "StrategyTraderJoeBoostedLP",
       want: USDC_AVAX_LP,
       mooName: "Moo Joe USDC-AVAX",
       mooSymbol: "mooJoeUSDC-AVAX",
       delay: 60,
-      pendingRewardsFunctionName: "pendingTokens",
       strategyParams: {
         want: USDC_AVAX_LP,
         poolId: USDC_AVAX_PID,
@@ -113,8 +114,9 @@ describe("VeJoeArch", async () => {
         strategist: STRATEGIST,
         beefyFeeRecipient: BEEFYFEERECIPIENT,
         outputToNativeRoute: [JOE, WAVAX],
-        outputToLp0Route: [JOE, WAVAX],
-        outputToLp1Route: [JOE, USDC],
+        secondOutputToNativeRoute: [WAVAX],
+        nativeToLp0Route: [WAVAX],
+        nativeToLp1Route: [USDC],
       },
       signer: signer,
       rpc: RPC,
@@ -127,12 +129,11 @@ describe("VeJoeArch", async () => {
   const SecondVault = async ({ signer, stakerAddr }) => {
     const config = {
       vault: "BeefyVaultV6",
-      strategy: "StrategyCommonChefBoostedLP",
+      strategy: "StrategyTraderJoeBoostedLP",
       want: USDTE_AVAX_LP,
       mooName: "Moo Joe USDT.e-AVAX",
       mooSymbol: "mooJoeUSDT.e-AVAX",
       delay: 60,
-      pendingRewardsFunctionName: "pendingTokens",
       strategyParams: {
         want: USDTE_AVAX_LP,
         poolId: USDTE_AVAX_PID,
@@ -143,8 +144,9 @@ describe("VeJoeArch", async () => {
         strategist: STRATEGIST,
         beefyFeeRecipient: BEEFYFEERECIPIENT,
         outputToNativeRoute: [JOE, WAVAX],
-        outputToLp0Route: [JOE, WAVAX],
-        outputToLp1Route: [JOE, WAVAX, USDTE],
+        secondOutputToNativeRoute: [WAVAX],
+        nativeToLp0Route: [WAVAX],
+        nativeToLp1Route: [WAVAX, USDTE],
       },
       signer: signer,
       rpc: RPC,

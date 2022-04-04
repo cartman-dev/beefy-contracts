@@ -9,11 +9,12 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "../../interfaces/common/boost/IVeWant.sol";
 import "../../interfaces/traderjoe/IBoostedMasterChef.sol";
 import "../../interfaces/traderjoe/IVeWantStaking.sol";
-import "./VeJoeStakingManager.sol";
+import "./VeJoeStakerManager.sol";
+import "./ReserveManager.sol";
 
 import "hardhat/console.sol"; // TODO REMOVE
 
-contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStakingManager {
+contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStakerManager, ReserveManager {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
 
@@ -28,10 +29,12 @@ contract VeJoeStaker is ERC20Upgradeable, ReentrancyGuardUpgradeable, VeJoeStaki
         address _veWantStaking,
         address _keeper,
         address _chef,
+        address _joeVault,
         string memory _name,
         string memory _symbol
     ) public initializer {
         managerInitialize(_veWantStaking, _keeper, _chef);
+        reserveInitialize(_joeVault); // TODO
 
         veWant = IVeWantStaking(_veWantStaking).veJoe();
         want = IVeWantStaking(_veWantStaking).joe();

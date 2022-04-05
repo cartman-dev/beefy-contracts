@@ -58,7 +58,6 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         address _strategist,
         address _beefyFeeRecipient,
         address[] memory _outputToNativeRoute,
-        address[] memory _secondOutputToNativeRoute,
         address[] memory _nativeToLp0Route,
         address[] memory _nativeToLp1Route
     ) StratManager(_keeper, _strategist, _unirouter, _vault, _beefyFeeRecipient) public {
@@ -69,7 +68,6 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
         output = _outputToNativeRoute[0];
         native = _outputToNativeRoute[_outputToNativeRoute.length - 1];
-        secondOutputToNativeRoute = _secondOutputToNativeRoute;
 
         // setup lp routing
         lpToken0 = IUniswapV2Pair(want).token0();
@@ -225,22 +223,15 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     function callReward() public view returns (uint256) {
         uint256 _nativeBal = address(this).balance;
         (uint256 _outputBal, uint256 _secondBal) = rewardsAvailable();
+
         if (_outputBal > 0) {
-            try IUniswapRouterETH(unirouter).getAmountsOut(_outputBal, outputToNativeRoute)
-            returns (uint256[] memory _amountOut)
-        {
+            uint256[] memory _amountOut = IUniswapRouterETH(unirouter).getAmountsOut(_outputBal, outputToNativeRoute);
             _nativeBal = _nativeBal.add(_amountOut[_amountOut.length -1]);
-        }
-        catch {}
         }
         
         if (_secondBal > 0 && outputToNativeRoute.length > 0) {
-            try IUniswapRouterETH(unirouter).getAmountsOut(_secondBal, secondOutputToNativeRoute)
-            returns (uint256[] memory _amountOut)
-        {
-            _nativeBal = _nativeBal.add(_amountOut[_amountOut.length -1]);
-        }
-        catch {}
+            uint256[] memory _secondAmountOut = IUniswapRouterETH(unirouter).getAmountsOut(_secondBal, secondOutputToNativeRoute);
+            _nativeBal = _nativeBal.add(_secondAmountOut[_secondAmountOut.length -1]);
         }
 
         return _nativeBal.mul(45).div(1000).mul(callFee).div(MAX_FEE);
@@ -321,7 +312,8 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     function setSecondOutputToNativeRoute(address[] memory _secondOutputToNativeRoute) external onlyManager {
         _removeAllowances();
-
+        
+        delete secondOutputToNativeRoute;
         secondOutputToNativeRoute = _secondOutputToNativeRoute;
 
         _giveAllowances();

@@ -20,15 +20,14 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     using SafeMath for uint256;
 
     // Tokens used
-    address constant public native = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7; // WAVAX
-    address constant public output = 0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd; // JOE
+    address public native;
+    address public output;
     address public want;
     address public lpToken0;
     address public lpToken1;
 
     // Beefy Contracts
     address public boostStaker;
-    address public joeFeeRecipient;
 
     // Third party contracts
     address public chef;
@@ -38,14 +37,14 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     uint256 public lastHarvest;
 
     // Routes
-    address[] public outputToNativeRoute = [output, native];
+    address[] public outputToNativeRoute;
     address[] public nativeToLp0Route;
     address[] public nativeToLp1Route;
 
     event StratHarvest(address indexed harvester, uint256 wantHarvested, uint256 tvl);
     event Deposit(uint256 tvl);
     event Withdraw(uint256 tvl);
-    event ChargedFees(uint256 callFees, uint256 beefyFees, uint256 strategistFees, uint256 stakerFees);
+    event ChargedFees(uint256 callFees, uint256 beefyFees, uint256 strategistFees);
 
     constructor(
         address _want,
@@ -57,7 +56,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         address _keeper,
         address _strategist,
         address _beefyFeeRecipient,
-        address _joeFeeRecipient,
+        address[] memory _outputToNativeRoute,
         address[] memory _nativeToLp0Route,
         address[] memory _nativeToLp1Route
     ) StratManager(_keeper, _strategist, _unirouter, _vault, _beefyFeeRecipient) public {
@@ -65,7 +64,9 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         poolId = _poolId;
         chef = _chef;
         boostStaker = _boostStaker;
-        joeFeeRecipient = _joeFeeRecipient;
+
+        output = _outputToNativeRoute[0];
+        native = _outputToNativeRoute[_outputToNativeRoute.length - 1];
 
         // setup lp routing
         lpToken0 = IUniswapV2Pair(want).token0();
@@ -171,7 +172,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         uint256 strategistFee = nativeBal.mul(STRATEGIST_FEE).div(MAX_FEE);
         IERC20(native).safeTransfer(strategist, strategistFee);
 
-        emit ChargedFees(callFeeAmount, beefyFeeAmount, strategistFee, stakerFeeAmount);
+        emit ChargedFees(callFeeAmount, beefyFeeAmount, strategistFee);
     }
 
     // Adds liquidity to AMM and gets more LP tokens.
@@ -271,11 +272,6 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         _giveAllowances();
 
         deposit();
-    }
-
-    // updates the recipient of Joe fees
-    function setJoeFeeRecipient(address _feeRecipient) external onlyManager {
-        joeFeeRecipient = _feeRecipient;
     }
 
     function _giveAllowances() internal {

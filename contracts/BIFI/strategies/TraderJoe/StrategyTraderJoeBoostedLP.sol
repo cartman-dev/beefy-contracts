@@ -38,6 +38,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // Routes
     address[] public outputToNativeRoute;
+    address[] public secondOutputToNativeRoute;
     address[] public nativeToLp0Route;
     address[] public nativeToLp1Route;
 
@@ -57,6 +58,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         address _strategist,
         address _beefyFeeRecipient,
         address[] memory _outputToNativeRoute,
+        address[] memory _secondOutputToNativeRoute,
         address[] memory _nativeToLp0Route,
         address[] memory _nativeToLp1Route
     ) StratManager(_keeper, _strategist, _unirouter, _vault, _beefyFeeRecipient) public {
@@ -67,6 +69,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
         output = _outputToNativeRoute[0];
         native = _outputToNativeRoute[_outputToNativeRoute.length - 1];
+        secondOutputToNativeRoute = _secondOutputToNativeRoute;
 
         // setup lp routing
         lpToken0 = IUniswapV2Pair(want).token0();
@@ -87,7 +90,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal > 0) {
-            IBoostStaker(boostStaker).deposit(poolId, wantBal);
+            IVeJoeStaker(boostStaker).deposit(poolId, wantBal);
             emit Deposit(balanceOf());
         }
     }
@@ -98,7 +101,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal < _amount) {
-            IBoostStaker(boostStaker).withdraw(poolId, _amount.sub(wantBal));
+            IVeJoeStaker(boostStaker).withdraw(poolId, _amount.sub(wantBal));
             wantBal = IERC20(want).balanceOf(address(this));
         }
 
@@ -137,9 +140,9 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // compounds earnings and charges performance fee
     function _harvest(address callFeeRecipient) internal whenNotPaused {
-        IBoostStaker(boostStaker).deposit(poolId, 0);
+        IVeJoeStaker(boostStaker).deposit(poolId, 0);
         uint256 _toWrap = address(this).balance;
-        if (toWrap > 0) {
+        if (_toWrap > 0) {
             IWrappedNative(native).deposit{value: _toWrap}();
         }
         uint256 outputBal = IERC20(output).balanceOf(address(this));
@@ -156,6 +159,12 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // performance fees
     function chargeFees(address callFeeRecipient) internal returns (uint256) {
+        if (secondOutputToNativeRoute.length != 0) {
+            uint256 secondBal = IERC20(secondOutputToNativeRoute[0]).balanceOf(address(this));
+            if (secondBal > 0) {
+                IUniswapRouterETH(unirouter).swapExactTokensForTokens(secondBal, 0, secondOutputToNativeRoute, address(this), now);
+            }
+        }
         uint256 toNative = IERC20(output).balanceOf(address(this));
         IUniswapRouterETH(unirouter).swapExactTokensForTokens(toNative, 0, outputToNativeRoute, address(this), now);
 
@@ -208,23 +217,33 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // returns rewards unharvested
     function rewardsAvailable() public view returns (uint256, uint256) {
-        (uint256 outputBal,,,uint256 nativeBal) = IMasterChef(chef).pendingTokens(poolId, address(boostStaker));
-        return (outputBal, nativeBal);
+        (uint256 outputBal,,,uint256 secondBal) = IMasterChef(chef).pendingTokens(poolId, address(boostStaker));
+        return (outputBal, secondBal);
     }
 
     // native reward amount for calling harvest
     function callReward() public view returns (uint256) {
-        (uint256 outputBal, uint256 nativeBal) = rewardsAvailable();
-        if (outputBal > 0) {
-            try IUniswapRouterETH(unirouter).getAmountsOut(outputBal, outputToNativeRoute)
-            returns (uint256[] memory amountOut)
+        uint256 _nativeBal = address(this).balance;
+        (uint256 _outputBal, uint256 _secondBal) = rewardsAvailable();
+        if (_outputBal > 0) {
+            try IUniswapRouterETH(unirouter).getAmountsOut(_outputBal, outputToNativeRoute)
+            returns (uint256[] memory _amountOut)
         {
-            nativeBal = nativeBal.add(amountOut[amountOut.length -1]);
+            _nativeBal = _nativeBal.add(_amountOut[_amountOut.length -1]);
+        }
+        catch {}
+        }
+        
+        if (_secondBal > 0 && outputToNativeRoute.length > 0) {
+            try IUniswapRouterETH(unirouter).getAmountsOut(_secondBal, secondOutputToNativeRoute)
+            returns (uint256[] memory _amountOut)
+        {
+            _nativeBal = _nativeBal.add(_amountOut[_amountOut.length -1]);
         }
         catch {}
         }
 
-        return nativeBal.mul(45).div(1000).mul(callFee).div(MAX_FEE);
+        return _nativeBal.mul(45).div(1000).mul(callFee).div(MAX_FEE);
     }
 
     function setHarvestOnDeposit(bool _harvestOnDeposit) external onlyManager {
@@ -245,8 +264,8 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     function retireStrat() external {
         require(msg.sender == vault, "!vault");
 
-        IBoostStaker(boostStaker).emergencyWithdraw(poolId);
-        IBoostStaker(boostStaker).upgradeStrategy(poolId);
+        IVeJoeStaker(boostStaker).emergencyWithdraw(poolId);
+        IVeJoeStaker(boostStaker).upgradeStrategy(poolId);
 
         uint256 wantBal = IERC20(want).balanceOf(address(this));
         IERC20(want).transfer(vault, wantBal);
@@ -255,7 +274,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     // pauses deposits and withdraws all funds from third party systems.
     function panic() public onlyManager {
         pause();
-        IBoostStaker(boostStaker).emergencyWithdraw(poolId);
+        IVeJoeStaker(boostStaker).emergencyWithdraw(poolId);
     }
 
     function pause() public onlyManager {
@@ -282,6 +301,10 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
         IERC20(lpToken1).safeApprove(unirouter, 0);
         IERC20(lpToken1).safeApprove(unirouter, uint256(-1));
+
+        if (secondOutputToNativeRoute.length > 0) {
+            IERC20(secondOutputToNativeRoute[0]).safeApprove(unirouter, uint256(-1));
+        }
     }
 
     function _removeAllowances() internal {
@@ -290,10 +313,26 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         IERC20(native).safeApprove(unirouter, 0);
         IERC20(lpToken0).safeApprove(unirouter, 0);
         IERC20(lpToken1).safeApprove(unirouter, 0);
+
+        if (secondOutputToNativeRoute.length > 0) {
+            IERC20(secondOutputToNativeRoute[0]).safeApprove(unirouter, 0);
+        }
+    }
+
+    function setSecondOutputToNativeRoute(address[] memory _secondOutputToNativeRoute) external onlyManager {
+        _removeAllowances();
+
+        secondOutputToNativeRoute = _secondOutputToNativeRoute;
+
+        _giveAllowances();
     }
 
     function outputToNative() external view returns (address[] memory) {
         return outputToNativeRoute;
+    }
+
+    function secondOutputToNative() external view returns (address[] memory) {
+        return secondOutputToNativeRoute;
     }
 
     function nativeToLp0() external view returns (address[] memory) {

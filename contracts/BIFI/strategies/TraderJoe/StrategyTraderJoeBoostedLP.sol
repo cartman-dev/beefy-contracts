@@ -83,26 +83,22 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     }
 
     // puts the funds to work
-    function deposit() public whenNotPaused payable {
+    function deposit() public whenNotPaused {
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal > 0) {
             IBoostStaker(boostStaker).deposit(poolId, wantBal);
-            uint256 _toWrap = msg.value;
-            IWrappedNative(native).deposit{value: _toWrap}();
             emit Deposit(balanceOf());
         }
     }
 
-    function withdraw(uint256 _amount) external payable {
+    function withdraw(uint256 _amount) external {
         require(msg.sender == vault, "!vault");
 
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal < _amount) {
             IBoostStaker(boostStaker).withdraw(poolId, _amount.sub(wantBal));
-            uint256 _toWrap = msg.value;
-            IWrappedNative(native).deposit{value: _toWrap}();
             wantBal = IERC20(want).balanceOf(address(this));
         }
 
@@ -142,8 +138,10 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     // compounds earnings and charges performance fee
     function _harvest(address callFeeRecipient) internal whenNotPaused {
         IBoostStaker(boostStaker).deposit(poolId, 0);
-        uint256 _toWrap = msg.value;
-        IWrappedNative(native).deposit{value: _toWrap}();
+        uint256 _toWrap = address(this).balance;
+        if (toWrap > 0) {
+            IWrappedNative(native).deposit{value: _toWrap}();
+        }
         uint256 outputBal = IERC20(output).balanceOf(address(this));
         if (outputBal > 0) {
             chargeFees(callFeeRecipient);

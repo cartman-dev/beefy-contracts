@@ -88,7 +88,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal > 0) {
-            IVeJoeStaker(boostStaker).deposit(poolId, wantBal);
+            IVeJoeStaker(boostStaker).deposit(chef, poolId, wantBal);
             emit Deposit(balanceOf());
         }
     }
@@ -99,7 +99,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
         uint256 wantBal = IERC20(want).balanceOf(address(this));
 
         if (wantBal < _amount) {
-            IVeJoeStaker(boostStaker).withdraw(poolId, _amount.sub(wantBal));
+            IVeJoeStaker(boostStaker).withdraw(chef, poolId, _amount.sub(wantBal));
             wantBal = IERC20(want).balanceOf(address(this));
         }
 
@@ -138,7 +138,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     // compounds earnings and charges performance fee
     function _harvest(address callFeeRecipient) internal whenNotPaused {
-        IVeJoeStaker(boostStaker).deposit(poolId, 0);
+        IVeJoeStaker(boostStaker).deposit(chef, poolId, 0);
         uint256 _toWrap = address(this).balance;
         if (_toWrap > 0) {
             IWrappedNative(native).deposit{value: _toWrap}();
@@ -255,8 +255,8 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     function retireStrat() external {
         require(msg.sender == vault, "!vault");
 
-        IVeJoeStaker(boostStaker).emergencyWithdraw(poolId);
-        IVeJoeStaker(boostStaker).upgradeStrategy(poolId);
+        IVeJoeStaker(boostStaker).emergencyWithdraw(chef, poolId);
+        IVeJoeStaker(boostStaker).upgradeStrategy(chef, poolId);
 
         uint256 wantBal = IERC20(want).balanceOf(address(this));
         IERC20(want).transfer(vault, wantBal);
@@ -265,7 +265,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
     // pauses deposits and withdraws all funds from third party systems.
     function panic() public onlyManager {
         pause();
-        IVeJoeStaker(boostStaker).emergencyWithdraw(poolId);
+        IVeJoeStaker(boostStaker).emergencyWithdraw(chef, poolId);
     }
 
     function pause() public onlyManager {
@@ -312,7 +312,7 @@ contract StrategyTraderJoeBoostedLP is StratManager, FeeManager, GasThrottler {
 
     function setSecondOutputToNativeRoute(address[] memory _secondOutputToNativeRoute) external onlyManager {
         _removeAllowances();
-        
+
         delete secondOutputToNativeRoute;
         secondOutputToNativeRoute = _secondOutputToNativeRoute;
 

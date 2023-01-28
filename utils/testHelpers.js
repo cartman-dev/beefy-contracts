@@ -47,7 +47,21 @@ const zapNativeToToken = async ({ amount, want, nativeTokenAddr, unirouter, swap
       await token0.approve(unirouter.address, token0Bal);
       await token1.approve(unirouter.address, token1Bal);
 
-      await unirouter.addLiquidity(token0.address, token1.address, token0Bal, token1Bal, 1, 1, recipient, 5000000000);
+      if (unirouter.address === "0x9c12939390052919aF3155f41Bf4160Fd3666A6f") {
+        await unirouter.addLiquidity(
+          token0.address,
+          token1.address,
+          false,
+          token0Bal,
+          token1Bal,
+          1,
+          1,
+          recipient,
+          5000000000
+        );
+      } else {
+        await unirouter.addLiquidity(token0.address, token1.address, token0Bal, token1Bal, 1, 1, recipient, 5000000000);
+      }
     } catch (e) {
       console.log("Could not add LP liquidity.", e);
     }
@@ -66,12 +80,28 @@ const swapNativeForToken = async ({ unirouter, amount, nativeTokenAddr, token, r
     return;
   }
 
-  try {
-    await unirouter[swapSignature](0, [nativeTokenAddr, token.address], recipient, 5000000000, {
-      value: amount,
-    });
-  } catch (e) {
-    console.log(`Could not swap for ${token.address}: ${e}`);
+  if (unirouter.address === "0x9c12939390052919aF3155f41Bf4160Fd3666A6f") {
+    try {
+      await unirouter[swapSignature](
+        0,
+        [{ from: nativeTokenAddr, to: token.address, stable: false }],
+        recipient,
+        5000000000,
+        {
+          value: amount,
+        }
+      );
+    } catch (e) {
+      console.log(`Could not swap for ${token.address}: ${e}`);
+    }
+  } else {
+    try {
+      await unirouter[swapSignature](0, [nativeTokenAddr, token.address], recipient, 5000000000, {
+        value: amount,
+      });
+    } catch (e) {
+      console.log(`Could not swap for ${token.address}: ${e}`);
+    }
   }
 };
 
@@ -123,6 +153,11 @@ const getUnirouterData = address => {
       return {
         interface: "IUniswapRouterBNB",
         swapSignature: "swapExactBNBForTokens",
+      };
+    case "0x9c12939390052919aF3155f41Bf4160Fd3666A6f":
+      return {
+        interface: "ISolidlyRouter",
+        swapSignature: "swapExactETHForTokens",
       };
     default:
       return {

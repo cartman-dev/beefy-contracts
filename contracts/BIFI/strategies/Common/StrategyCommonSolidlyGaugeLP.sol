@@ -8,10 +8,10 @@ import "../../interfaces/common/ISolidlyRouter.sol";
 import "../../interfaces/common/ISolidlyPair.sol";
 import "../../interfaces/common/ISolidlyGauge.sol";
 import "../../interfaces/common/IERC20Extended.sol";
-import "../Common/StratFeeManager.sol";
+import "../Common/StratFeeManagerInitializable.sol";
 import "../../utils/GasFeeThrottler.sol";
 
-contract StrategyCommonSolidlyGaugeLP is StratFeeManager, GasFeeThrottler {
+contract StrategyCommonSolidlyGaugeLP is StratFeeManagerInitializable, GasFeeThrottler {
     using SafeERC20 for IERC20;
 
     // Tokens used
@@ -38,14 +38,15 @@ contract StrategyCommonSolidlyGaugeLP is StratFeeManager, GasFeeThrottler {
     event Withdraw(uint256 tvl);
     event ChargedFees(uint256 callFees, uint256 beefyFees, uint256 strategistFees);
 
-    constructor(
+    function initialize(
         address _want,
         address _gauge,
-        CommonAddresses memory _commonAddresses,
-        ISolidlyRouter.Routes[] memory _outputToNativeRoute,
-        ISolidlyRouter.Routes[] memory _outputToLp0Route,
-        ISolidlyRouter.Routes[] memory _outputToLp1Route
-    ) StratFeeManager(_commonAddresses) {
+        CommonAddresses calldata _commonAddresses,
+        ISolidlyRouter.Routes[] calldata _outputToNativeRoute,
+        ISolidlyRouter.Routes[] calldata _outputToLp0Route,
+        ISolidlyRouter.Routes[] calldata _outputToLp1Route
+    ) public initializer {
+        __StratFeeManager_init(_commonAddresses);
         want = _want;
         gauge = _gauge;
 

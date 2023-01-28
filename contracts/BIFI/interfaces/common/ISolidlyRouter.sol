@@ -54,6 +54,13 @@ interface ISolidlyRouter {
         uint deadline
     ) external returns (uint amountToken, uint amountETH);
 
+    function swapExactETHForTokens(
+        uint amountOutMin, 
+        Routes[] memory route, 
+        address to, 
+        uint deadline
+    ) external payable returns (uint[] memory amounts);
+    
     function swapExactTokensForTokensSimple(
         uint amountIn, 
         uint amountOutMin, 

@@ -144,6 +144,24 @@ const config: DeploymentConfig = {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
     apiKey: process.env.API_KEY,
+    customChains: [
+      {
+        network: "metis",
+        chainId: 1088,
+        urls: {
+          apiURL: "https://andromeda-explorer.metis.io/api",
+          browserURL: "https://andromeda-explorer.metis.io/"
+        }
+      },
+      {
+        network: "celo",
+        chainId: 42220,
+        urls: {
+          apiURL: "https://api.celoscan.io/api/",
+          browserURL: "https://celoscan.io/"
+        }
+      }
+    ]
   },
   solidity: {
     compilers: [

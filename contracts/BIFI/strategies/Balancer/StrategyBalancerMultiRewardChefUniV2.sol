@@ -7,9 +7,6 @@ import "@openzeppelin-4/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../interfaces/common/IUniswapRouterETH.sol";
 import "../../interfaces/beethovenx/IBeethovenxChef.sol";
 import "../../interfaces/beethovenx/IBalancerVault.sol";
-import "../../interfaces/curve/IRewardsGauge.sol";
-import "../../interfaces/curve/IStreamer.sol";
-import "../../interfaces/curve/IHelper.sol";
 import "../Common/StratFeeManagerInitializable.sol";
 import "./BalancerActionsLib.sol";
 import "./BeefyBalancerStructs.sol";
@@ -169,7 +166,7 @@ contract StrategyBalancerMultiRewardChefUniV2 is StratFeeManagerInitializable {
 
     function swapRewardsToNative() internal {
         uint256 outputBal = IERC20(output).balanceOf(address(this));
-        if (outputBal > 0) {
+        if (outputBal > 1 ether) {
             IBalancerVault.BatchSwapStep[] memory _swaps = BalancerActionsLib.buildSwapStructArray(outputToNativeRoute, outputBal);
             BalancerActionsLib.balancerSwap(unirouter, swapKind, _swaps, outputToNativeAssets, funds, int256(outputBal));
         }

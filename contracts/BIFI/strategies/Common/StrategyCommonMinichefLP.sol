@@ -12,7 +12,7 @@ import "../../interfaces/common/ICommonRewarderV8.sol";
 import "../Common/StratFeeManagerInitializable.sol";
 import "../../utils/GasFeeThrottler.sol";
 
-contract StrategyCommonMiniChefMultiRewardsLP is StratFeeManagerInitializable, GasFeeThrottler {
+contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottler {
     using SafeERC20 for IERC20;
 
     // Tokens used
@@ -140,9 +140,9 @@ contract StrategyCommonMiniChefMultiRewardsLP is StratFeeManagerInitializable, G
     function _harvest(address callFeeRecipient) internal whenNotPaused {
         ICommonMiniChef(chef).harvest(poolId, address(this));
         swapRewardsToNative();
-        uint256 outputBal = IERC20(output).balanceOf(address(this));
+        uint256 nativeBal = IERC20(native).balanceOf(address(this));
 
-        if (outputBal > 0) {
+        if (nativeBal > 0) {
             chargeFees(callFeeRecipient);
             addLiquidity();
             uint256 wantHarvested = balanceOfWant();

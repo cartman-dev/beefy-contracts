@@ -2,7 +2,7 @@ import hardhat, { ethers, web3 } from "hardhat";
 import { avax } from "../../../beefy-api/packages/address-book/build/address-book/avax";
 import vaultV7 from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7.sol/BeefyVaultV7.json";
 import vaultV7Factory from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7Factory.sol/BeefyVaultV7Factory.json";
-import stratAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyCommonMiniChefMultiRewardsLP.sol/StrategyCommonMiniChefMultiRewardsLP.json";
+import stratAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyCommonMinichefLP.sol/StrategyCommonMinichefLP.json";
 
 const {
   platforms: { pangolin, beefyfinance },
@@ -41,7 +41,7 @@ const strategyParams = {
   setAdditionalRewards: false,
   additionalRewards: [[USDT, [USDT, AVAX], 0]],
   vaultFactory: beefyfinance.vaultFactory || "",
-  strategyImplementation: "0x64575Ee43D2E71E8476970A726f15a2cBCa46A9A",
+  strategyImplementation: "0x3590cEEbd6f384E05B768abe9070Adb8571EA3b7",
 };
 
 async function main() {

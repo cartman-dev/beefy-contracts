@@ -2,7 +2,7 @@ const hardhat = require("hardhat");
 
 const ethers = hardhat.ethers;
 
-const strategyName = "contracts/BIFI/flattened.sol:StrategyBalancerMultiRewardChefUniV2";
+const strategyName = "StrategyCommonMinichefLP";
 
 async function main() {
   await hardhat.run("compile");

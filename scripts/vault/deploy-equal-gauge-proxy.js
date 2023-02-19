@@ -6,52 +6,46 @@ import stratAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyC
 import stratStakerAbi from "../../artifacts/contracts/BIFI/strategies/Balancer/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.sol/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.json";
 
 const {
-  platforms: { thena, beefyfinance },
+  platforms: { equalizer, beefyfinance },
   tokens: {
-    THE: { address: THE },
+    EQUAL: { address: EQUAL },
+    FTM: { address: FTM },
     USDC: { address: USDC },
-    BUSD: { address: BUSD },
-    BNB: { address: BNB },
-    ETH: { address: ETH },
-    MAI: { address: MAI },
-    USDT: { address: USDT },
-    BTCB: { address: BTCB },
-    BNBx: { address: BNBx },
-    FRAX: { address: FRAX },
+    BTC: { address: BTC },
   },
-} = addressBook.bsc;
+} = addressBook.fantom;
 
-const want = web3.utils.toChecksumAddress("0xdE4Cc4446205d1138EcAa48B2CB22b8e06E69BD4");
-const gauge = web3.utils.toChecksumAddress("0xCDF4E03E33813E4374957De6A9F1E926c33D98f1");
+const want = web3.utils.toChecksumAddress("0xDA3E21477F872F30794551D908DE244b8839F723");
+const gauge = web3.utils.toChecksumAddress("0xcDd56e66d7bd326b55cC23bA49f53262D7382555");
 const binSpiritGauge = web3.utils.toChecksumAddress("0x44e314190D9E4cE6d4C0903459204F8E21ff940A");
 //const ensId = ethers.utils.formatBytes32String("cake.eth");
 
 const vaultParams = {
-  mooName: "Moo Thena MULTI-BUSD",
-  mooSymbol: "mooThenaMULTI-BUSD",
+  mooName: "Moo Equalizer BTC-FTM",
+  mooSymbol: "mooEqualizerBTC-FTM",
   delay: 21600,
 };
 
 const strategyParams = {
   want: want,
   gauge: gauge,
-  unirouter: thena.router,
+  unirouter: equalizer.router,
   gaugeStaker: binSpiritGauge,
   strategist: "0x22e3709Cf6476d67F468F29E4dE2051ED53747A4", // only BSC
   keeper: beefyfinance.keeper,
   beefyFeeRecipient: beefyfinance.beefyFeeRecipient,
   feeConfig: beefyfinance.beefyFeeConfig,
-  outputToNativeRoute: [[THE, BNB, false]],
+  outputToNativeRoute: [[EQUAL, FTM, false]],
   outputToLp0Route: [
-    [THE, BUSD, false],
-    [BUSD, "0x9Fb9a33956351cf4fa040f65A13b835A3C8764E3", false],
+    [EQUAL, FTM, false],
+    [FTM, BTC, false],
   ],
-  outputToLp1Route: [[THE, BUSD, false]],
+  outputToLp1Route: [[EQUAL, FTM, false]],
   verifyStrat: false,
   spiritswapStrat: false,
   gaugeStakerStrat: false,
-  beefyVaultProxy: "0xe596eC590DE52C09c8D1C7A1294B32F957A7c94e", //beefyfinance.vaultProxy,
-  strategyImplementation: "0xd1B5A6078B04b4BED9bF656b055c3721833972ba",
+  beefyVaultProxy: "0x740CE0674aF6eEC113A435fAa53B297536A3e89B", //beefyfinance.vaultProxy,
+  strategyImplementation: "0x813A0577c905917F2aBD86D8F3a5Fc0057159166",
   strategyImplementationStaker: "0xC3d5c128a3e5b F60C6Fb87A4B644B6a2D8093f55",
   useVaultProxy: true,
   // ensId

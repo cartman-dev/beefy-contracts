@@ -31,16 +31,16 @@ const strategyParams = {
   gauge: gauge,
   unirouter: equalizer.router,
   gaugeStaker: binSpiritGauge,
-  strategist: "0x22e3709Cf6476d67F468F29E4dE2051ED53747A4", // only BSC
+  strategist: "0xB189ad2658877C4c63E07480CB680AfE8c192412", // only Fantom
   keeper: beefyfinance.keeper,
   beefyFeeRecipient: beefyfinance.beefyFeeRecipient,
   feeConfig: beefyfinance.beefyFeeConfig,
-  outputToNativeRoute: [["0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6", FTM, false]],
-  outputToLp0Route: [
-    ["0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6", FTM, false],
+  outputToNativeRoute: [[EQUAL, FTM, false]],
+  outputToLp0Route: [[EQUAL, FTM, false]],
+  outputToLp1Route: [
+    [EQUAL, FTM, false],
     [FTM, BTC, false],
   ],
-  outputToLp1Route: [["0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6", FTM, false]],
   verifyStrat: false,
   spiritswapStrat: false,
   gaugeStakerStrat: false,

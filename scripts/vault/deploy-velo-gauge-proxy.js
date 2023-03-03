@@ -1,72 +1,49 @@
 import hardhat, { ethers, web3 } from "hardhat";
-import { addressBook } from "../../../beefy-api/packages/address-book/address-book/";
+import { addressBook } from "blockchain-addressbook";
 import vaultV7 from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7.sol/BeefyVaultV7.json";
 import vaultV7Factory from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7Factory.sol/BeefyVaultV7Factory.json";
 import stratAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyCommonSolidlyRewardPool.sol/StrategyCommonSolidlyRewardPoolLP.json";
 import stratStakerAbi from "../../artifacts/contracts/BIFI/strategies/Balancer/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.sol/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.json";
 
 const {
-  platforms: { thena, beefyfinance },
+  platforms: { velodrome, beefyfinance },
   tokens: {
-    THE: { address: THE },
+    VELO: { address: VELO },
     USDC: { address: USDC },
-    BUSD: { address: BUSD },
-    BNB: { address: BNB },
     ETH: { address: ETH },
-    MAI: { address: MAI },
     USDT: { address: USDT },
-    BTCB: { address: BTCB },
-    BNBx: { address: BNBx },
-    FRAX: { address: FRAX },
-    MATIC: { address: MATIC },
-    IDIA: { address: IDIA },
-    ankrBNB: { address: ankrBNB },
-    ankrETH: { address: ankrETH },
-    ANKR: { address: ANKR },
-    AVAX: { address: AVAX },
     DOLA: { address: DOLA },
-    FS: { address: FS },
-    FIL: { address: FIL },
-    wUSDR: { address: wUSDR },
-    MULTI: { address: MULTI },
-    PRIMAL: { address: PRIMAL },
   },
-} = addressBook.bsc;
+} = addressBook.optimism;
 
-const want = web3.utils.toChecksumAddress("0x19420fa1D0E350b5d46a8D3B24Ff2421744eB54E");
-const gauge = web3.utils.toChecksumAddress("0x74619E802aAC2A8A6D17Bc913E0585a026AFD152");
+const want = web3.utils.toChecksumAddress("0x1eBE6427f037385dDcB95aa688c18272415e3F46");
+const gauge = web3.utils.toChecksumAddress("0x070A26A2A090B3c4E450d093540E3008FaA8C230");
 const binSpiritGauge = web3.utils.toChecksumAddress("0x44e314190D9E4cE6d4C0903459204F8E21ff940A");
 //const ensId = ethers.utils.formatBytes32String("cake.eth");
 
 const vaultParams = {
-  mooName: "Moo Thena BNBx-USDT",
-  mooSymbol: "mooThenaBNBx-USDT",
+  mooName: "Moo Velodrome VELO-DOLA",
+  mooSymbol: "mooVelodromeVELO-DOLA",
   delay: 21600,
 };
 
 const strategyParams = {
   want: want,
   gauge: gauge,
-  unirouter: thena.router,
+  unirouter: velodrome.router,
   gaugeStaker: binSpiritGauge,
-  strategist: "0x22e3709Cf6476d67F468F29E4dE2051ED53747A4", // only BSC
+  strategist: "0xD340e02a1174696f77Df3c9ca043c809453c5C83", // optimism only
   keeper: beefyfinance.keeper,
   beefyFeeRecipient: beefyfinance.beefyFeeRecipient,
   feeConfig: beefyfinance.beefyFeeConfig,
-  outputToNativeRoute: [[THE, BNB, false]],
-  outputToLp0Route: [
-    [THE, BNB, false],
-    [BNB, BNBx, false],
-  ],
-  outputToLp1Route: [
-    [THE, BUSD, false],
-    [BUSD, USDT, true],
-  ],
+  outputToNativeRoute: [[VELO, ETH, false]],
+  outputToLp0Route: [[VELO, VELO, false]],
+  outputToLp1Route: [[VELO, DOLA, false]],
   verifyStrat: false,
   spiritswapStrat: false,
   gaugeStakerStrat: false,
   beefyVaultProxy: beefyfinance.vaultFactory,
-  strategyImplementation: "0xd1B5A6078B04b4BED9bF656b055c3721833972ba",
+  strategyImplementation: "0xC3d5c128a3e5bF60C6Fb87A4B644B6a2D8093f55", // optimism only
   strategyImplementationStaker: "0xC3d5c128a3e5b F60C6Fb87A4B644B6a2D8093f55",
   useVaultProxy: true,
   // ensId

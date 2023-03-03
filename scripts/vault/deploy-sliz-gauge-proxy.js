@@ -1,74 +1,55 @@
 import hardhat, { ethers, web3 } from "hardhat";
-import { addressBook } from "../../../beefy-api/packages/address-book/address-book/";
+import { addressBook } from "../../../beefy-api/packages/address-book/address-book";
 import vaultV7 from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7.sol/BeefyVaultV7.json";
 import vaultV7Factory from "../../artifacts/contracts/BIFI/vaults/BeefyVaultV7Factory.sol/BeefyVaultV7Factory.json";
 import stratAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyCommonSolidlyRewardPool.sol/StrategyCommonSolidlyRewardPoolLP.json";
-import stratStakerAbi from "../../artifacts/contracts/BIFI/strategies/Balancer/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.sol/StrategyAuraBalancerComposableMultiRewardGaugeUniV3.json";
+import stratStakerAbi from "../../artifacts/contracts/BIFI/strategies/Common/StrategyCommonSolidlyStakerLP.sol/StrategyCommonSolidlyStakerLP.json";
 
 const {
-  platforms: { thena, beefyfinance },
+  platforms: { solidlizard, beefyfinance },
   tokens: {
-    THE: { address: THE },
+    SLIZ: { address: SLIZ },
     USDC: { address: USDC },
-    BUSD: { address: BUSD },
-    BNB: { address: BNB },
-    ETH: { address: ETH },
-    MAI: { address: MAI },
     USDT: { address: USDT },
-    BTCB: { address: BTCB },
-    BNBx: { address: BNBx },
-    FRAX: { address: FRAX },
-    MATIC: { address: MATIC },
-    IDIA: { address: IDIA },
-    ankrBNB: { address: ankrBNB },
-    ankrETH: { address: ankrETH },
-    ANKR: { address: ANKR },
-    AVAX: { address: AVAX },
-    DOLA: { address: DOLA },
-    FS: { address: FS },
-    FIL: { address: FIL },
-    wUSDR: { address: wUSDR },
-    MULTI: { address: MULTI },
-    PRIMAL: { address: PRIMAL },
+    MAI: { address: MAI },
+    LUSD: { address: LUSD },
+    ETH: { address: ETH },
   },
-} = addressBook.bsc;
+} = addressBook.arbitrum;
 
-const want = web3.utils.toChecksumAddress("0x19420fa1D0E350b5d46a8D3B24Ff2421744eB54E");
-const gauge = web3.utils.toChecksumAddress("0x74619E802aAC2A8A6D17Bc913E0585a026AFD152");
-const binSpiritGauge = web3.utils.toChecksumAddress("0x44e314190D9E4cE6d4C0903459204F8E21ff940A");
+const want = web3.utils.toChecksumAddress("0xB1E9b823295B3C69ac651C05D987B67189ff20AD");
+const gauge = web3.utils.toChecksumAddress("0xa4f536393E277DC63ECfa869d901b4f81cc5462C");
+const binSpiritGauge = web3.utils.toChecksumAddress("0x408BAF59E27a83740FF426d0BC8c1319f30720c7");
 //const ensId = ethers.utils.formatBytes32String("cake.eth");
 
 const vaultParams = {
-  mooName: "Moo Thena BNBx-USDT",
-  mooSymbol: "mooThenaBNBx-USDT",
+  mooName: "Moo Solidlizard LUSD-USDC",
+  mooSymbol: "mooSolidlizardLUSD-USDC",
   delay: 21600,
 };
 
 const strategyParams = {
   want: want,
   gauge: gauge,
-  unirouter: thena.router,
+  unirouter: solidlizard.router,
   gaugeStaker: binSpiritGauge,
-  strategist: "0x22e3709Cf6476d67F468F29E4dE2051ED53747A4", // only BSC
+  strategist: "0x2434826b2cA0BeEDc9287Fb592d94328F525eA0D", // only Arbitrum
   keeper: beefyfinance.keeper,
   beefyFeeRecipient: beefyfinance.beefyFeeRecipient,
   feeConfig: beefyfinance.beefyFeeConfig,
-  outputToNativeRoute: [[THE, BNB, false]],
+  outputToNativeRoute: [[SLIZ, ETH, false]],
   outputToLp0Route: [
-    [THE, BNB, false],
-    [BNB, BNBx, false],
+    [SLIZ, USDC, false],
+    [USDC, LUSD, true],
   ],
-  outputToLp1Route: [
-    [THE, BUSD, false],
-    [BUSD, USDT, true],
-  ],
+  outputToLp1Route: [[SLIZ, USDC, false]],
   verifyStrat: false,
   spiritswapStrat: false,
-  gaugeStakerStrat: false,
-  beefyVaultProxy: beefyfinance.vaultFactory,
-  strategyImplementation: "0xd1B5A6078B04b4BED9bF656b055c3721833972ba",
-  strategyImplementationStaker: "0xC3d5c128a3e5b F60C6Fb87A4B644B6a2D8093f55",
-  useVaultProxy: true,
+  gaugeStakerStrat: true,
+  beefyVaultFactory: beefyfinance.vaultFactory,
+  strategyImplementation: "0x25f8429A9221cAE76c646d084D2eAD1Aa354EcF4",
+  strategyImplementationStaker: "0x25f8429A9221cAE76c646d084D2eAD1Aa354EcF4",
+  useVaultFactory: true,
   // ensId
 };
 
@@ -85,7 +66,7 @@ async function main() {
 
   console.log("Deploying:", vaultParams.mooName);
 
-  const factory = await ethers.getContractAt(vaultV7Factory.abi, strategyParams.beefyVaultProxy);
+  const factory = await ethers.getContractAt(vaultV7Factory.abi, strategyParams.beefyVaultFactory);
   let vault = await factory.callStatic.cloneVault();
   let tx = await factory.cloneVault();
   tx = await tx.wait();

@@ -20,7 +20,7 @@ const {
 const want = web3.utils.toChecksumAddress("0xB1E9b823295B3C69ac651C05D987B67189ff20AD");
 const gauge = web3.utils.toChecksumAddress("0xa4f536393E277DC63ECfa869d901b4f81cc5462C");
 const binSpiritGauge = web3.utils.toChecksumAddress("0x408BAF59E27a83740FF426d0BC8c1319f30720c7");
-//const ensId = ethers.utils.formatBytes32String("cake.eth");
+// const ensId = ethers.utils.formatBytes32String("cake.eth");
 
 const vaultParams = {
   mooName: "Moo Solidlizard LUSD-USDC",
@@ -67,14 +67,14 @@ async function main() {
   console.log("Deploying:", vaultParams.mooName);
 
   const factory = await ethers.getContractAt(vaultV7Factory.abi, strategyParams.beefyVaultFactory);
-  let vault = await factory.callStatic.cloneVault();
+  const vault = await factory.callStatic.cloneVault();
   let tx = await factory.cloneVault();
   tx = await tx.wait();
   tx.status === 1
     ? console.log(`Vault ${vault} is deployed with tx: ${tx.transactionHash}`)
     : console.log(`Vault ${vault} deploy failed with tx: ${tx.transactionHash}`);
 
-  let strat = await factory.callStatic.cloneContract(strategyParams.strategyImplementation);
+  const strat = await factory.callStatic.cloneContract(strategyParams.strategyImplementation);
   let stratTx = await factory.cloneContract(
     strategyParams.gaugeStakerStrat
       ? strategyParams.strategyImplementationStaker
@@ -133,7 +133,7 @@ async function main() {
     strategyParams.outputToLp1Route,
   ];
 
-  let abi = strategyParams.gaugeStakerStrat ? stratStakerAbi.abi : stratAbi.abi;
+  const abi = strategyParams.gaugeStakerStrat ? stratStakerAbi.abi : stratAbi.abi;
   const stratContract = await ethers.getContractAt(abi, strat);
   let args = strategyParams.gaugeStakerStrat ? strategyConstructorArgumentsStaker : strategyConstructorArguments;
   let stratInitTx = await stratContract.initialize(...args);

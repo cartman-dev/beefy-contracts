@@ -9,11 +9,11 @@ import "../../interfaces/common/IUniswapRouterETH.sol";
 import "../../interfaces/common/IUniswapV2Pair.sol";
 import "../../interfaces/common/IMasterChef.sol";
 import "../../interfaces/curve/ICurveSwap.sol";
-import "../Common/StratFeeManager.sol";
+import "../Common/StratFeeManagerInitializable.sol";
 import "../../utils/StringUtils.sol";
 import "../../utils/GasFeeThrottler.sol";
 
-contract StrategyChefCurveLP is StratFeeManager, GasFeeThrottler {
+contract StrategyChefCurveLP is StratFeeManagerInitializable, GasFeeThrottler {
     using SafeERC20 for IERC20;
 
     // Tokens used
@@ -43,7 +43,7 @@ contract StrategyChefCurveLP is StratFeeManager, GasFeeThrottler {
     event Withdraw(uint256 tvl);
     event ChargedFees(uint256 callFees, uint256 beefyFees, uint256 strategistFees);
 
-    constructor(
+    function initialize(
         address _want,
         uint256 _poolId,
         address _chef,
@@ -51,10 +51,11 @@ contract StrategyChefCurveLP is StratFeeManager, GasFeeThrottler {
         uint _poolSize,
         uint _depositIndex,
         bool _useMetapool,
-        address[] memory _outputToNativeRoute,
-        address[] memory _outputToDepositRoute,
-        CommonAddresses memory _commonAddresses
-    ) StratFeeManager(_commonAddresses) {
+        address[] calldata _outputToNativeRoute,
+        address[] calldata _outputToDepositRoute,
+        CommonAddresses calldata _commonAddresses
+    ) public initializer {
+        __StratFeeManager_init(_commonAddresses);
         want = _want;
         poolId = _poolId;
         chef = _chef;

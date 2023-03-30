@@ -16,14 +16,14 @@ import {VaultUser} from "./users/VaultUser.sol";
 contract ProdVaultTest is BaseTestHarness {
 
     // Input your vault to test here.
-    IVault constant vault = IVault(0xc4f179b4096514c48ce70b9Ad27e689A3f2C9831);
+    IVault constant vault = IVault(0x7F3581966bc6F34916C204f4388336D6e3D39b87);
     IStrategy strategy;
 
     // Users
     VaultUser user;
-    address constant keeper = 0x340465d9D2EbDE78F15a3870884757584F97aBB4;
-    address constant vaultOwner = 0xc8F3D9994bb1670F5f3d78eBaBC35FA8FdEEf8a2; // fantom
-    address constant strategyOwner = 0xfcDD5a02C611ba6Fe2802f885281500EC95805d7; // fantom
+    address constant keeper = 0x4fED5491693007f0CD49f4614FFC38Ab6A04B619;
+    address constant vaultOwner = 0x5B6C5363851EC9ED29CB7220C39B44E1dd443992; // eth
+    address constant strategyOwner = 0x1c9270ac5C42E51611d7b97b1004313D52c80293; // eth
 
     IERC20Like want;
     uint256 slot; // Storage slot that holds `balanceOf` mapping.
@@ -185,7 +185,7 @@ contract ProdVaultTest is BaseTestHarness {
             assertEq(strategy.withdrawalFee(), 0, "Vault is harvestOnDeposit but has withdrawal fee.");
         } else {
             console.log("Vault is NOT harvestOnDeposit.");
-            assertEq(strategy.keeper(), keeper, "Vault is not harvestOnDeposit but doesn't have withdrawal fee.");
+            assertEq(strategy.keeper(), keeper, "Vault is not harvestOnDeposit but doesn't have the right keeper address.");
         }
     }
 

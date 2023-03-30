@@ -11,8 +11,9 @@ import "../../interfaces/common/ICommonMiniChef.sol";
 import "../../interfaces/common/ICommonRewarderV8.sol";
 import "../Common/StratFeeManagerInitializable.sol";
 import "../../utils/GasFeeThrottler.sol";
+import "../../utils/StringUtils.sol";
 
-contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottler {
+contract StrategyCommonMiniChefLP is StratFeeManagerInitializable, GasFeeThrottler {
     using SafeERC20 for IERC20;
 
     // Tokens used
@@ -36,6 +37,7 @@ contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottl
 
     bool public harvestOnDeposit;
     uint256 public lastHarvest;
+    string public pendingRewardsFunctionName;
 
     // Routes
     address[] public outputToNativeRoute;
@@ -57,12 +59,15 @@ contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottl
         CommonAddresses calldata _commonAddresses,
         address[] memory _outputToNativeRoute,
         address[] memory _nativeToLp0Route,
-        address[] memory _nativeToLp1Route
+        address[] memory _nativeToLp1Route,
+        Reward[] memory _rewards,
+        string calldata _pendingRewardsFunctionName
     ) public initializer {
         __StratFeeManager_init(_commonAddresses);
         want = _want;
         poolId = _poolId;
         chef = _chef;
+        pendingRewardsFunctionName = _pendingRewardsFunctionName;
 
         // set up output routing
         output = _outputToNativeRoute[0];
@@ -77,8 +82,15 @@ contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottl
 
         lpToken1 = IUniswapV2Pair(want).token1();
         require(_nativeToLp1Route[0] == native, "nativeToLp1Route[0] != native");
-        require(_nativeToLp1Route[_nativeToLp1Route.length - 1] == lpToken1, "nativeToLp01oute[last] != lpToken1");
+        require(_nativeToLp1Route[_nativeToLp1Route.length - 1] == lpToken1, "nativeToLp1Route[last] != lpToken1");
         nativeToLp1Route = _nativeToLp1Route;
+
+        if (_rewards.length != 0) {
+            for (uint256 i; i < _rewards.length;) {
+                _addRewardToken(_rewards[i]);
+                unchecked{ i++;}
+            }
+        }
 
         _giveAllowances();
     }
@@ -229,9 +241,23 @@ contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottl
         IERC20(want).transfer(vault, wantBal);
     }
 
+    function setPendingRewardsFunctionName(string calldata _pendingRewardsFunctionName) external onlyManager {
+        pendingRewardsFunctionName = _pendingRewardsFunctionName;
+    }    
+    
     // returns secondary rewards unharvested
     function rewardsAvailable() public view returns (uint256, uint256[] memory) {
-        uint256 outputReward = ICommonMiniChef(chef).pendingReward(poolId, address(this));
+        string memory signature = StringUtils.concat(pendingRewardsFunctionName, "(uint256,address)");
+        bytes memory result = Address.functionStaticCall(
+            chef, 
+            abi.encodeWithSignature(
+                signature,
+                poolId,
+                address(this)
+            )
+        );  
+        uint256 outputReward = abi.decode(result, (uint256));
+        
         uint256[] memory secondaryRewards;
         // checks if there is a rewarder associated with the pool, if not will return an empty array.
         address rewarder = ICommonMiniChef(chef).rewarder(poolId);
@@ -271,16 +297,20 @@ contract StrategyCommonMinichefLP is StratFeeManagerInitializable, GasFeeThrottl
     }
 
     function addRewardToken(address _token, address[] calldata _rewardToNativeRoute, uint256 minAmount) external onlyOwner {
-        require(_token != want, "!want");
-        require(_token != native, "!native");
-        require(_rewardToNativeRoute.length > 0, "!rewardToNativeRoute");
-        require(_rewardToNativeRoute[0] == _token, "_rewardToNativeRoute[0] != _token");
-        require(_rewardToNativeRoute[_rewardToNativeRoute.length - 1] == native, "_rewardToNativeRoute[last] != native");
-    
-        IERC20(_token).safeApprove(unirouter, 0);
-        IERC20(_token).safeApprove(unirouter, type(uint).max);
+        return _addRewardToken(Reward(_token, _rewardToNativeRoute, minAmount));
+    }
 
-        rewards.push(Reward(_token, _rewardToNativeRoute, minAmount));
+    function _addRewardToken(Reward memory _reward) internal {
+        require(_reward.token != want, "!want");
+        require(_reward.token != native, "!native");
+        require(_reward.rewardToNativeRoute.length > 0, "!rewardToNativeRoute");
+        require(_reward.rewardToNativeRoute[0] == _reward.token, "_rewardToNativeRoute[0] != _token");
+        require(_reward.rewardToNativeRoute[_reward.rewardToNativeRoute.length - 1] == native, "_rewardToNativeRoute[last] != native");
+    
+        IERC20(_reward.token).safeApprove(unirouter, 0);
+        IERC20(_reward.token).safeApprove(unirouter, type(uint).max);
+
+        rewards.push(_reward);
     }
 
     function resetRewardTokens() external onlyManager {
